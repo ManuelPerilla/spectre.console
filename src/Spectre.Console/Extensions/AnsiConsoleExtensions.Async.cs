@@ -66,22 +66,33 @@ public static class SpinnerExtensions
                 }
             }, cancellationTokenSource.Token);
 
+        async Task StopSpinner()
+        {
+            await cancellationTokenSource.CancelAsync();
+            try
+            {
+                await spinnerTask;
+            }
+            catch (OperationCanceledException) when (spinnerTask.IsCanceled && cancellationTokenSource.IsCancellationRequested)
+            {
+                // Cancellation is expected when stopping the animation.
+            }
+        }
+
         try
         {
             // Wait for the actual task to complete
             if (task is Task<T> taskWithResult)
             {
                 var result = await taskWithResult;
-                await cancellationTokenSource.CancelAsync();
-                await spinnerTask.ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled);
+                await StopSpinner();
 
                 return result;
             }
             else
             {
                 await task;
-                await cancellationTokenSource.CancelAsync();
-                await spinnerTask.ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled);
+                await StopSpinner();
 
                 return default;
             }
